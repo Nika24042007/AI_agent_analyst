@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import logo from './assets/logo.svg'
+import uploadIcon from './assets/upload.svg'
 import './App.css'
 
 function App() {
@@ -53,7 +54,9 @@ function App() {
           ) : null}
           <input
             className={
-              promptFocused || !query ? 'prompt-input' : 'prompt-input is-covered'
+              promptFocused || !query
+                ? "prompt-input"
+                : "prompt-input is-covered"
             }
             type="text"
             value={query}
@@ -64,15 +67,19 @@ function App() {
             aria-label="Поиск"
             title={query}
           />
+          {query ? (
+            <img className="prompt-send" src={uploadIcon} alt="" />
+          ) : null}
         </div>
+
         <input
           ref={fileInputRef}
           type="file"
           multiple
           hidden
           onChange={(event) => {
-            addFiles(event.target.files)
-            event.target.value = ''
+            addFiles(event.target.files);
+            event.target.value = "";
           }}
         />
       </div>
@@ -94,7 +101,7 @@ function App() {
         </ul>
       ) : null}
     </main>
-  )
+  );
 }
 
 export default App
