@@ -1,16 +1,41 @@
 import json
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from agents import Runner
 
-from src.main import model_builder_agent, checkout_interpreter_agent
+from openai import AsyncOpenAI
+from agents import Agent, Runner, set_default_openai_client, set_tracing_disabled, AgentOutputSchema
+from dotenv import load_dotenv
 from src.classes.response import BehavioralModel
 
+import httpx
+
+load_dotenv()
+
+from src.constants.llm_settings import MODEL, OPENAI_BASE_URL, MODEL_BUILDER_BASE_PROMPT, \
+    CHECKOUT_INTERPRETER_BASE_PROMPT
+
+# TODO убрать http_client (это для отладки)
+http_client = httpx.AsyncClient(verify=False)
+
+client = AsyncOpenAI(base_url=OPENAI_BASE_URL, http_client=http_client)
+set_default_openai_client(client)
+set_tracing_disabled(True)
+
+model_builder_agent = Agent(
+    name="ModelBuilder",
+    instructions=MODEL_BUILDER_BASE_PROMPT,
+    model=MODEL,
+    output_type=AgentOutputSchema(BehavioralModel, strict_json_schema=False),
+)
+checkout_interpreter_agent = Agent(
+    name="CheckResultInterpreter",
+    instructions=CHECKOUT_INTERPRETER_BASE_PROMPT,
+    model=MODEL
+)
+
 app = FastAPI(title="AI Agent Analyst")
-
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,8 +43,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 class AskRequest(BaseModel):
     text: str
+
 
 def model_checker_stub() -> dict:
     """TODO: заменить на реальный вызов ModelChecker (TLC)."""
@@ -37,28 +64,30 @@ def model_checker_stub() -> dict:
       }
     }''')
 
+
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
 
+
 @app.post("/api/ask")
 async def ask(req: AskRequest):
+    try:
+        history = [{"role": "user", "content": req.text}]
+        result = await Runner.run(model_builder_agent, history)
+        model_obj = result.final_output_as(BehavioralModel)
+        model_json = model_obj.model_dump_json(by_alias=True, exclude_none=True, indent=2)
 
-    result = await Runner.run(
-        model_builder_agent, [{"role": "user", "content": req.text}]
-    )
-    model = result.final_output_as(BehavioralModel).model_dump(
-        by_alias=True, exclude_none=True
-    )
+        model_checker_response = model_checker_stub()
 
-
-    check = model_checker_stub()
-
-
-    interp = await Runner.run(
-        checkout_interpreter_agent,
-        f"Исходный запрос: {req.text}\n"
-        f"Модель: {json.dumps(model, ensure_ascii=False)}\n"
-        f"Результат проверки: {check}",
-    )
-    return {"model": model, "interpretation": interp.final_output}
+        interpreter_prompt = (
+            f"Исходный запрос: {req.text}\n"
+            f"Модель: {model_json}\n"
+            f"Результат проверки: {json.dumps(model_checker_response, ensure_ascii=False)}"
+        )
+        checkout_interpreter_result = await Runner.run(checkout_interpreter_agent, interpreter_prompt)
+        return {
+            "model": model_obj.model_dump(by_alias=True, exclude_none=True),
+            "interpretation": checkout_interpreter_result.final_output}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка при обработке запроса агентом: {str(e)}")
