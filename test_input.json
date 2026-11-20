@@ -1,0 +1,19 @@
+{
+  "model": {
+    "variables": [
+      {"name": "status", "type": "enum", "values": ["Created", "Approved"]},
+      {"name": "status", "type": "enum", "values": ["X", "Y"]},
+      {"name": "attempts", "type": "integer", "min": 0, "max": 3}
+    ],
+    "initial": {
+      "status": "Created",
+      "attempts": 10
+    },
+    "transitions": []
+  },
+  "property": {
+    "id": "P1",
+    "type": "invariant",
+    "expression": {}
+  }
+}
