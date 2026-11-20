@@ -1,6 +1,6 @@
 import os
 import json
-from model_checker import ModelCheckerTool
+from src.model_checker import ModelCheckerTool
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 

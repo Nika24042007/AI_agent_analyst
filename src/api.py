@@ -1,4 +1,5 @@
 import json
+import asyncio
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,6 +9,8 @@ from openai import AsyncOpenAI
 from agents import Agent, Runner, set_default_openai_client, set_tracing_disabled, AgentOutputSchema
 from dotenv import load_dotenv
 from src.classes.response import BehavioralModel
+
+from src.model_checker.tool import ModelCheckerTool
 
 import httpx
 
@@ -43,26 +46,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+model_checker = ModelCheckerTool(
+    tla_tools_jar="tla2tools.jar",
+    timeout_sec=30,
+    max_states=100000
+)
 
 class AskRequest(BaseModel):
     text: str
 
 
-def model_checker_stub() -> dict:
-    """TODO: заменить на реальный вызов ModelChecker (TLC)."""
-    return json.loads('''{
-      "status": "PROPERTY_VIOLATED",
-      "property_id": "P2",
-      "engine": "TLC",
-      "counterexample": {
-        "steps": [
-          {"number": 0, "state": {"status": "Created", "approved": false, "cancelled": false}},
-          {"number": 1, "transition": "Approve", "state": {"status": "Approved", "approved": true, "cancelled": false}},
-          {"number": 2, "transition": "Cancel", "state": {"status": "Cancelled", "approved": true, "cancelled": true}},
-          {"number": 3, "transition": "Execute", "state": {"status": "Executed", "approved": true, "cancelled": true}}
-        ]
-      }
-    }''')
+def model_checker_call(model) -> dict:
+    if model.get("properties"):
+        property_to_check = model["properties"][0]
+        check = model_checker.check(model, property_to_check)
+    else:
+        check = {"status": "MODEL_INVALID", "message": "No properties to check"}
+    return check
 
 
 @app.get("/api/health")
@@ -73,12 +73,13 @@ async def health():
 @app.post("/api/ask")
 async def ask(req: AskRequest):
     try:
-        history = [{"role": "user", "content": req.text}]
-        result = await Runner.run(model_builder_agent, history)
+        result = await Runner.run(model_builder_agent, req.text)
         model_obj = result.final_output_as(BehavioralModel)
+
+        model_dict = model_obj.model_dump(by_alias=True, exclude_none=True)
         model_json = model_obj.model_dump_json(by_alias=True, exclude_none=True, indent=2)
 
-        model_checker_response = model_checker_stub()
+        model_checker_response = await asyncio.to_thread(model_checker_call, model_dict)
 
         interpreter_prompt = (
             f"Исходный запрос: {req.text}\n"
