@@ -4,6 +4,7 @@ import asyncio
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from pathlib import Path
 
 from openai import AsyncOpenAI
 from agents import Agent, Runner, set_default_openai_client, set_tracing_disabled, AgentOutputSchema
@@ -46,8 +47,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+current_file = Path(__file__).resolve()
+project_root = current_file.parent.parent
+jar_absolute_path = str(project_root / "tla2tools.jar")
+
 model_checker = ModelCheckerTool(
-    tla_tools_jar="tla2tools.jar",
+    tla_tools_jar=jar_absolute_path,
     timeout_sec=30,
     max_states=100000
 )
@@ -89,6 +94,7 @@ async def ask(req: AskRequest):
         checkout_interpreter_result = await Runner.run(checkout_interpreter_agent, interpreter_prompt)
         return {
             "model": model_obj.model_dump(by_alias=True, exclude_none=True),
+            "check_result": model_checker_response,
             "interpretation": checkout_interpreter_result.final_output}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка при обработке запроса агентом: {str(e)}")
