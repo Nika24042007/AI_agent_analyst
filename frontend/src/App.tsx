@@ -7,23 +7,45 @@ import {
 } from "react";
 import logo from "./assets/logo.svg";
 import uploadIcon from "./assets/upload.svg";
-import { BACKEND_URL } from "./config";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import "./App.css";
+
+const BACKEND_URL = (
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:8000"
+).replace(/\/+$/, "");
 
 type AnswerState = {
   request: string;
   status: "loading" | "success" | "error";
   text: string;
+  model?: Record<string, unknown>;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+async function readJsonResponse(response: Response): Promise<unknown> {
+  const text = await response.text();
+  if (!text.trim()) {
+    throw new Error(`Сервер вернул пустой ответ (HTTP ${response.status})`);
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`Сервер вернул не JSON (HTTP ${response.status})`);
+  }
+}
+
 function App() {
   const [query, setQuery] = useState("");
   const promptInputRef = useRef<HTMLTextAreaElement>(null);
   const [answer, setAnswer] = useState<AnswerState | null>(null);
+  const [modelCopyState, setModelCopyState] = useState<
+    "idle" | "copied" | "error"
+  >("idle");
   const [serverStatus, setServerStatus] = useState<
     "checking" | "online" | "offline"
   >("checking");
@@ -67,11 +89,15 @@ function App() {
           method: "GET",
           cache: "no-store",
         });
-        const data = await response.json();
+        const data = await readJsonResponse(response);
 
         if (active) {
           setServerStatus(
-            response.ok && data.status === "ok" ? "online" : "offline",
+            response.ok &&
+              isRecord(data) &&
+              data.status === "ok"
+              ? "online"
+              : "offline",
           );
         }
       } catch {
@@ -95,6 +121,7 @@ function App() {
     const request = query.trim();
     if (!request || answer?.status === "loading") return;
 
+    setModelCopyState("idle");
     setAnswer({ request, status: "loading", text: "" });
     setQuery("");
 
@@ -104,7 +131,7 @@ function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: request }),
       });
-      const data: unknown = await response.json();
+      const data = await readJsonResponse(response);
 
       if (!response.ok) {
         const detail =
@@ -118,7 +145,12 @@ function App() {
         throw new Error("Сервер вернул ответ в неизвестном формате");
       }
 
-      setAnswer({ request, status: "success", text: data.interpretation });
+      setAnswer({
+        request,
+        status: "success",
+        text: data.interpretation,
+        model: isRecord(data.model) ? data.model : undefined,
+      });
     } catch (error) {
       setAnswer({
         request,
@@ -129,6 +161,31 @@ function App() {
             : "Не удалось получить ответ от сервера",
       });
     }
+  }
+
+  async function copyModel(model: Record<string, unknown>) {
+    const text = JSON.stringify(model, null, 2);
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        const copied = document.execCommand("copy");
+        textarea.remove();
+        if (!copied) throw new Error("Не удалось скопировать");
+      }
+      setModelCopyState("copied");
+    } catch {
+      setModelCopyState("error");
+    }
+
+    window.setTimeout(() => setModelCopyState("idle"), 2000);
   }
 
   return (
@@ -201,13 +258,50 @@ function App() {
               ? "Обрабатываем запрос"
               : answer.status === "error"
                 ? "Не удалось получить ответ"
-                : "Ответ сервера"}
+                : "Ответ"}
           </h2>
           <p className="answer-request">{answer.request}</p>
           {answer.status === "loading" ? (
             <p className="answer-text">Пожалуйста, подождите...</p>
-          ) : (
+          ) : answer.status === "error" ? (
             <p className="answer-text">{answer.text}</p>
+          ) : (
+            <>
+              <div className="answer-text answer-markdown">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    a: ({ children, ...props }) => (
+                      <a {...props} target="_blank" rel="noreferrer">
+                        {children}
+                      </a>
+                    ),
+                  }}
+                >
+                  {answer.text}
+                </ReactMarkdown>
+              </div>
+              {answer.model ? (
+                <div className="answer-model">
+                  <div className="answer-model-header">
+                    <h3>Модель</h3>
+                    <button
+                      type="button"
+                      className="answer-model-copy"
+                      onClick={() => copyModel(answer.model!)}
+                      aria-label="Скопировать модель"
+                    >
+                      {modelCopyState === "copied"
+                        ? "Скопировано"
+                        : modelCopyState === "error"
+                          ? "Ошибка"
+                          : "Скопировать"}
+                    </button>
+                  </div>
+                  <pre>{JSON.stringify(answer.model, null, 2)}</pre>
+                </div>
+              ) : null}
+            </>
           )}
         </section>
       ) : null}
