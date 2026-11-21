@@ -9,7 +9,7 @@ from pathlib import Path
 from openai import AsyncOpenAI
 from agents import Agent, Runner, set_default_openai_client, set_tracing_disabled, AgentOutputSchema
 from dotenv import load_dotenv
-from src.classes.response import BehavioralModel
+from src.classes.response import BehavioralModel, CheckResultInterpretation
 
 from src.model_checker.tool import ModelCheckerTool
 
@@ -36,7 +36,8 @@ model_builder_agent = Agent(
 checkout_interpreter_agent = Agent(
     name="CheckResultInterpreter",
     instructions=CHECKOUT_INTERPRETER_BASE_PROMPT,
-    model=MODEL
+    model=MODEL,
+    output_type=AgentOutputSchema(CheckResultInterpretation, strict_json_schema=False)
 )
 
 app = FastAPI(title="AI Agent Analyst")
@@ -53,7 +54,7 @@ jar_absolute_path = str(project_root / "tla2tools.jar")
 
 model_checker = ModelCheckerTool(
     tla_tools_jar=jar_absolute_path,
-    timeout_sec=30,
+    timeout_sec=60,
     max_states=100000
 )
 
@@ -92,9 +93,12 @@ async def ask(req: AskRequest):
             f"Результат проверки: {json.dumps(model_checker_response, ensure_ascii=False)}"
         )
         checkout_interpreter_result = await Runner.run(checkout_interpreter_agent, interpreter_prompt)
+        interpretation_obj = checkout_interpreter_result.final_output_as(CheckResultInterpretation)
         return {
             "model": model_obj.model_dump(by_alias=True, exclude_none=True),
             "check_result": model_checker_response,
-            "interpretation": checkout_interpreter_result.final_output}
+            "interpretation": interpretation_obj.analysis,
+            "corrected_requirements": interpretation_obj.corrected_requirements,
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка при обработке запроса агентом: {str(e)}")

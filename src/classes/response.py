@@ -1,7 +1,21 @@
 from __future__ import annotations
 
 from typing import Any, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
+
+
+class CheckResultInterpretation(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    analysis: str = Field(
+        description="Текстовый анализ результата проверки на языке бизнес-требований."
+    )
+
+    corrected_requirements: str | None = Field(
+        default=None,
+        description="Исправленное описание требований на естественном языке (только если PROPERTY_VIOLATED). "
+                    "Если свойство выполняется или проверка не завершена, оставьте null."
+    )
 
 
 class VarRef(BaseModel):
