@@ -42,6 +42,7 @@ async function readJsonResponse(response: Response): Promise<unknown> {
 function App() {
   const [query, setQuery] = useState("");
   const promptInputRef = useRef<HTMLTextAreaElement>(null);
+  const promptFormRef = useRef<HTMLFormElement>(null);
   const [answer, setAnswer] = useState<AnswerState | null>(null);
   const [modelCopyState, setModelCopyState] = useState<
     "idle" | "copied" | "error"
@@ -72,10 +73,40 @@ function App() {
 
   useLayoutEffect(() => {
     const promptInput = promptInputRef.current;
-    if (!promptInput) return;
+    const promptForm = promptFormRef.current;
+    if (!promptInput || !promptForm) return;
 
+    const currentHeight = promptInput.getBoundingClientRect().height;
+    const currentFormHeight = promptForm.getBoundingClientRect().height;
+    promptInput.style.transition = "none";
+    promptForm.style.transition = "none";
     promptInput.style.height = "auto";
-    promptInput.style.height = `${promptInput.scrollHeight}px`;
+    const nextHeight = promptInput.scrollHeight;
+    promptInput.style.height = `${currentHeight}px`;
+    promptForm.style.height = `${currentFormHeight}px`;
+    void promptForm.offsetHeight;
+    promptInput.style.removeProperty("transition");
+    promptForm.style.removeProperty("transition");
+    promptInput.style.height = `${nextHeight}px`;
+    promptForm.style.height = `${Math.max(
+      48,
+      currentFormHeight + nextHeight - currentHeight,
+    )}px`;
+
+    const bottomOverflow =
+      promptInput.getBoundingClientRect().bottom +
+      nextHeight -
+      currentHeight -
+      window.innerHeight +
+      24;
+    if (bottomOverflow > 0) {
+      window.scrollBy({
+        top: bottomOverflow,
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+      });
+    }
   }, [query]);
 
   useEffect(() => {
@@ -189,11 +220,13 @@ function App() {
   }
 
   return (
-    <main className={`home${answer ? " home-with-answer" : ""}`}>
+    <main
+      className={`home${answer ? " home-with-answer" : query ? " home-with-query" : ""}`}
+    >
       <div className="home-prompt">
         <img className="wordmark" src={logo} alt="сурьёзно." />
 
-        <form className="prompt" onSubmit={sendQuery}>
+        <form ref={promptFormRef} className="prompt" onSubmit={sendQuery}>
           {/* <button
             type="button"
             className="prompt-add"
