@@ -1,19 +1,17 @@
 :root {
-  --text: #ff2f00;
-  --text-h: #ff0000;
-  --bg: #f7f7f7;
-  --color-prompt-background: #b7e6dc;
-  --color-accent: #4ea39c;
-  --color-accent-hover: #2f7f79;
-  --color-content: #1c3335;
-  --color-placeholder: #7aa8a3;
-  --color-attachment-background: #e7f6f2;
-  --color-attachment-hover: #cfeee7;
+  --text-green-1: #5ba8a5;
+  --text-green-2: #2e7975;
+  --text-green-3: #062b35;
+  --bg: #f9f9f9;
+  --bg-purple: #eec8ef;
+  --bg-green-1: #BAE8D8;
+  --text-purple-1: #A95B8D;
+
   --color-transparent: transparent;
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --sans: "Inter", system-ui, sans-serif;
 
   font: 18px/145% var(--sans);
-  color: var(--text);
+  color: var(--text-green-3);
   background: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;

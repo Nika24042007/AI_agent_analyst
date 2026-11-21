@@ -1,11 +1,34 @@
 .home {
+  width: 100%;
   min-height: 100svh;
+  display: grid;
+  grid-template-rows: calc(50svh - 24px) auto 1fr;
+  justify-items: center;
+  padding: 24px 20px;
+  box-sizing: border-box;
+  transition: grid-template-rows 500ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.home-with-answer {
+  grid-template-rows: calc(15svh - 24px) auto 1fr;
+}
+
+.home-prompt {
+  grid-row: 2;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 24px 20px 120px;
-  box-sizing: border-box;
+  transform: translateY(-50%);
+  transition: transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.home-with-answer .home-prompt {
+  transform: none;
+}
+
+.answer {
+  grid-row: 3;
 }
 
 .wordmark {
@@ -15,15 +38,48 @@
   display: block;
 }
 
+.server-status {
+  position: fixed;
+  right: 1.5%;
+  bottom: 2%;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 1ch;
+  margin: 0;
+  color: var(--text-green-1);
+  font-size: 13px;
+}
+
+.server-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.server-status-checking {
+  color: var(--text-purple-1);
+}
+
+.server-status-online {
+  color: var(--text-green-2);
+}
+
+.server-status-offline {
+  color: var(--text-green-3);
+}
+
 .prompt {
   width: min(560px, 100%);
-  height: 48px;
+  min-height: 48px;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 18px 0 14px;
-  border-radius: 999px;
-  background: var(--color-prompt-background);
+  padding: 12px 18px 12px 14px;
+  border-radius: 24px;
+  background: var(--bg-green-1);
+  color: var(--text-green-3);
   box-sizing: border-box;
 }
 
@@ -34,7 +90,7 @@
   padding: 0;
   border: 0;
   background: var(--color-transparent);
-  color: var(--color-accent);
+  color: var(--text-green-3);
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -48,11 +104,11 @@
 }
 
 .prompt-add:hover {
-  color: var(--color-accent-hover);
+  color: var(--text-green-2);
 }
 
 .prompt-add:focus-visible {
-  outline: 2px solid var(--color-accent-hover);
+  outline: 2px solid var(--text-green-2);
   outline-offset: 2px;
 }
 
@@ -60,47 +116,111 @@
   position: relative;
   flex: 1;
   min-width: 0;
-  height: 24px;
-}
-
-.prompt-truncated {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--color-content);
-  font: 16px/24px var(--sans);
-  pointer-events: none;
+  min-height: 24px;
 }
 
 .prompt-input {
-  position: relative;
+  display: block;
   width: 100%;
-  height: 24px;
-  padding: 0;
+  min-height: 24px;
+  max-height: none;
+  padding: 0 40px 0 0;
   border: 0;
   background: var(--color-transparent);
   font: 16px/24px var(--sans);
-  color: var(--color-content);
+  color: var(--text-green-3);
   outline: none;
-}
-
-.prompt-input.is-covered {
-  color: var(--color-transparent);
-  caret-color: var(--color-transparent);
+  overflow: hidden;
+  resize: none;
 }
 
 .prompt-input::placeholder {
-  color: var(--color-placeholder);
+  color: var(--text-green-1);
 }
 
 .prompt-send {
   position: absolute;
   flex: none;
-  height: 100%;
+  top: 50%;
   right: 0;
-  
+  width: 32px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: var(--color-transparent);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.prompt-send:hover:not(:disabled),
+.prompt-send:hover:not(:disabled) img {
+  cursor: pointer;
+}
+
+.prompt-send img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.prompt-send:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.prompt-send:focus-visible {
+  outline: 2px solid var(--text-green-2);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.answer {
+  width: min(560px, 100%);
+  margin-top: 20px;
+  padding: 20px 24px;
+  border: 1px solid var(--bg-green-1);
+  border-radius: 18px;
+  background: var(--bg);
+  color: var(--text-green-3);
+  box-shadow: 0 8px 24px
+    color-mix(in srgb, var(--text-green-3) 6%, var(--color-transparent));
+}
+
+.answer h2 {
+  margin: 0;
+  color: var(--text-green-2);
+  font-size: 17px;
+  line-height: 1.4;
+}
+
+.answer-request {
+  margin: 12px 0 0;
+  color: var(--text-purple-1);
+  font-size: 14px;
+}
+
+.answer-text {
+  color: var(--text-purple-1);
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  font-size: 16px;
+}
+
+.answer-error {
+  border-color: var(--text-purple-1);
+  background: var(--bg-purple);
+}
+
+.answer-error h2 {
+  color: var(--text-purple-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home,
+  .home-prompt {
+    transition: none;
+  }
 }
 
 .attachments {
@@ -121,8 +241,8 @@
   gap: 6px;
   padding: 6px 8px 6px 12px;
   border-radius: 999px;
-  background: var(--color-attachment-background);
-  color: var(--color-content);
+  background: var(--bg-green-1);
+  color: var(--text-green-3);
   font-size: 14px;
 }
 
@@ -140,12 +260,12 @@
   border: 0;
   border-radius: 50%;
   background: var(--color-transparent);
-  color: var(--color-accent);
+  color: var(--text-green-2);
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
 }
 
 .attachments button:hover {
-  background: var(--color-attachment-hover);
+  background: var(--bg-purple);
 }
